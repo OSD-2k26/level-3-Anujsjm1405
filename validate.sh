@@ -55,4 +55,4 @@ echo "$MERGES" | grep -q "merge.*truth" || {
   exit 1
 }
 
-echo "✅ Level 4 Passed"
+echo "✅ Level 3 Passed"
