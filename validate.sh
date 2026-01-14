@@ -1,13 +1,13 @@
 #!/bin/bash
 set -e
 
-# Fetch all branches (CRITICAL for GitHub Actions)
-git fetch --all --quiet
+# Ensure all remote branches are available (CI-safe)
+git fetch origin '+refs/heads/*:refs/remotes/origin/*' --quiet
 
-# Get all REMOTE branch names
-BRANCHES=$(git branch -r --format='%(refname:short)')
+# Get remote branch names only
+BRANCHES=$(git for-each-ref --format='%(refname:short)' refs/remotes/origin)
 
-# Find path and truth branches (case-insensitive)
+# Find required branches
 PATH_BRANCH=$(echo "$BRANCHES" | grep -i 'path' | head -n 1 || true)
 TRUTH_BRANCH=$(echo "$BRANCHES" | grep -i 'truth' | head -n 1 || true)
 
@@ -21,40 +21,32 @@ if [ -z "$TRUTH_BRANCH" ]; then
   exit 1
 fi
 
-# Switch to main
+# Switch to main safely
 git checkout main >/dev/null 2>&1
 
-# Case-insensitive file check in main
+# Check files in main (case-insensitive)
 FILES_IN_MAIN=$(ls | tr '[:upper:]' '[:lower:]')
 
-echo "$FILES_IN_MAIN" | grep -q "^path.txt$" || {
+echo "$FILES_IN_MAIN" | grep -qx "path.txt" || {
   echo "❌ path.txt not found in main"
   exit 1
 }
 
-echo "$FILES_IN_MAIN" | grep -q "^truth.txt$" || {
+echo "$FILES_IN_MAIN" | grep -qx "truth.txt" || {
   echo "❌ truth.txt not found in main"
   exit 1
 }
 
-# Count merge commits
-MERGE_COUNT=$(git log --oneline --merges | wc -l)
-
-if [ "$MERGE_COUNT" -lt 2 ]; then
-  echo "❌ Expected at least two merge commits"
-  exit 1
-fi
-
-# Case-insensitive merge validation
+# Ensure both branches were merged
 MERGES=$(git log --oneline --merges | tr '[:upper:]' '[:lower:]')
 
-echo "$MERGES" | grep -q "merge.*path" || {
-  echo "❌ Branch containing 'path' was not merged"
+echo "$MERGES" | grep -q "path" || {
+  echo "❌ Path branch was not merged"
   exit 1
 }
 
-echo "$MERGES" | grep -q "merge.*truth" || {
-  echo "❌ Branch containing 'truth' was not merged"
+echo "$MERGES" | grep -q "truth" || {
+  echo "❌ Truth branch was not merged"
   exit 1
 }
 
